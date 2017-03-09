@@ -45,3 +45,7 @@ will return a JSON like
 ## Development
 
 Development is still in progress, right now just a basic set of functionalities have been remapped.
+
+## API Reference Documentation
+
+The API Reference Documentation for AirStationLink can be found [here](https://ffalcinelli.github.io/airstationlink).
