@@ -8,7 +8,7 @@ This project is a simple java wrapper to manage Buffalo AirStation without using
 The only supported model is WZR-1750DHP since it's the only one I own, it may work with other models too.
 
 
- ## Quick start
+## Quick start
 
 Simple like this
 
