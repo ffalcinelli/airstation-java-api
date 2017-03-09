@@ -1,0 +1,22 @@
+{
+  "MODE":"NORTON",
+  "NORTON":[
+    {
+      "SUPPORT":true,
+      "FUNCTION":false,
+      "AGREE":true,
+      "INTERNET":true,
+      "LEVEL":0,
+      "FAQURL":"http://www.norton.com/buffalo/"
+    },
+    {"NULL":"NULL"}],
+  "IFILTER":[
+    {
+      "SUPPORT":false,
+      "FUNCTION":false,
+      "STATUS":10,
+      "EXPIRE":"-"
+    },
+    {"NULL":"NULL"}],
+  "NULL":"NULL"
+}

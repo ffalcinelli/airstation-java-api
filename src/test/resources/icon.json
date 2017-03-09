@@ -1,0 +1,12 @@
+{
+  "INTERNET":true,
+  "INFO":["NULL"],
+  "NEWFW_VER":"",
+  "BEHAVIOR":"ROUTER",
+  "WANIP":"192.168.1.11",
+  "REPEATER":false,
+  "PARENTSSID":"",
+  "ECO":false,
+  "LOGIN":true,
+  "MOBILE":false
+}

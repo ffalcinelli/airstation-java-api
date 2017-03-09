@@ -1,0 +1,30 @@
+{
+  "SUPPORT":true,
+  "DEVICE_INFO":[
+    {"NULL":"NULL"}],
+  "DISK_AUTO_MOUNT":false,
+  "FAT_LANG":"437",
+  "POWER_SAVING":false,
+  "HDD_SLEEP":10,
+  "SHARED_FOLDER":
+  [
+    {
+      "FOLDER_NAME":"test_data_folder_name",
+      "DESCRIPTION":"this is the test folder. please edit json.c!",
+      "DISK":1,
+      "PART":1,
+      "APPLICATION":["NULL"],
+      "ACCESS_CONTROL":"",
+      "ACCESS":["FULL","FULL","FULL","FULL","FULL","NULL"],
+      "WEB_AXS":true
+    },
+    {"NULL":"NULL"}
+  ],
+  "USER":[
+    {
+      "USERNAME":"jdoe",
+      "PASSWORD":"password",
+      "DESCRIPTION":""
+    },
+    {"NULL":"NULL"}]
+}

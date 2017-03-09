@@ -1,0 +1,304 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+	<title>LOGIN</title>
+	
+	<meta name="viewport" content="width=324">
+	<link rel="stylesheet" type="text/css" href="./LOGIN_files/style-PY20-common.css">
+	<meta name="format-detection" content="telephone=no">
+	<meta http-equiv="Pragma" content="no-cache">
+	<meta http-equiv="Cache-Control" content="no-cache">
+	<meta http-equiv="Expires" content="Thu, 01 Dec 1994 16:00:00 GMT">
+	<script type="text/javascript" src="./LOGIN_files/py20_common.js"></script>
+	<script type="text/javascript" src="./LOGIN_files/prototype.js"></script>
+	<script type="text/javascript" src="./LOGIN_files/cookiectrl.js"></script>
+	<script type="text/javascript" src="./LOGIN_files/rsa_encrypt.js"></script><script type="text/javascript" src="./LOGIN_files/jsbn.js"></script><script type="text/javascript" src="./LOGIN_files/prng4.js"></script><script type="text/javascript" src="./LOGIN_files/rng.js"></script><script type="text/javascript" src="./LOGIN_files/rsa.js"></script><script type="text/javascript" src="./LOGIN_files/base64.js"></script>
+<style type="text/css">
+<!--
+-->
+</style>
+<script language="JavaScript">
+<!--
+function getJsonParam(category, handle)
+{
+	new Ajax.Request("/cgi-bin/cgi?req=fnc&fnc=%24{get_json_param("+ category +"," + getNowTime() + ")}",
+		{method : 'post', onComplete : handle});
+}
+
+function handleSystemParamOnComplete(req)
+{
+	var data = req.responseText.evalJSON();
+	document.getElementById("form_USERNAME").value = data.USERNAME.escapeHTML();
+	document.getElementById("USERNAME").innerHTML = data.USERNAME.escapeHTML();
+}
+
+function handleDeviceParamOnComplete(req)
+{
+	var data = req.responseText.evalJSON();
+	document.getElementById("devinfo").innerHTML    = data.MODEL.escapeHTML() + "&nbsp;&nbsp;Version " + data.VERSION.escapeHTML();
+}
+
+function unEscapeText(str) {
+	var ret = jQuery('<div>').html(str).text();
+	return ret;
+}
+function handleLangParamOnComplete(req)
+{
+	var i;
+	var lang_el = 0;
+	var data = req.responseText.evalJSON();
+	if(data.FUNCTION)
+	{
+		for(i = 0; i < data.LANG.length; i++)
+		{
+			if(data.LANG[i] == "auto")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Automatico"), "auto");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "jp")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Giapponese"), "jp");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "eng")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Inglese"), "eng");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "ko")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Coreano"), "ko");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "zh")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Cinese"), "zh");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "de")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Tedesco"), "de");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "fr")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Francese"), "fr");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "it")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Italiano"), "it");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "es")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Spagnolo"), "es");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "zh_cn")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Cinese (semplificato)"), "zh_cn");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "zh_tw")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Cinese (tradizionale)"), "zh_tw");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "fi")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("__TRANSLATE__"), "fi");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "sv")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("__TRANSLATE__"), "sv");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "no")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("__TRANSLATE__"), "no");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "ru")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Russo"), "ru");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "tr")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("turco"), "tr");
+				lang_el++;
+			}
+			else if(data.LANG[i] == "br_pt")
+			{
+				elId("input_LANG").options[lang_el] = new Option(unEscapeText("Portoghese brasiliano"), "br_pt");
+				lang_el++;
+			}
+		}
+		if(data.LANG.length > 2)
+		{
+			elId("input_LANG").style.display = "";
+		}
+	}
+}
+
+function dispElem(id, disp, baseel)
+{
+/*
+	if(disp == "")
+	{
+		var top = 0;
+		var left = 0;
+		top = baseel.offsetTop + baseel.offsetHeight;
+		left = baseel.offsetLeft + baseel.offsetWidth - 260;
+		document.getElementById(id).style.top = top + "px";
+		document.getElementById(id).style.left = left + "px";
+	}
+	document.getElementById(id).style.display = disp;
+*/
+}
+
+function beParent()
+{
+	if (self != top)
+	{
+		top.location.href = self.location.href;
+	}
+}
+
+function setCbMobile()
+{
+	var cookie = getCookie("mobile");
+	if(cookie == "true")
+	{
+		document.getElementById("cb_mobile").checked = true;
+	}
+	else if(cookie == "false")
+	{
+		document.getElementById("cb_mobile").checked = false;
+	}
+	else
+	{
+		if(0x00000000 & 0x00000010)
+		{
+			document.getElementById("cb_mobile").checked = true;
+		}
+		else
+		{
+			document.getElementById("cb_mobile").checked = false;
+		}
+	}
+}
+
+function handleLangOnChange(elem)
+{
+	var lang = elem.value;
+//	alert(lang);
+}
+
+function handleSubmitOnClick()
+{
+	setCookie("mobile", document.getElementById("cb_mobile").checked);
+	// { RSA ENCRYPTO
+	var exponent = "65537";
+	var modulus = "A5261939975948BB7A58DFFE5FF54E65F0498F9175F5A09288810B8975871E99AF3B5DD94057B0FC07535F5F97444504FA35169D461D0D30CF0192E307727C065168C788771C561A9400FB49175E9E6AA4E23FE11AF69E9412DD23B0CB6684C4C2429BCE139E848AB26D0829073351F4ACD36074EAFD036A5EB83359D2A698D3";
+	var plaintext = concat_postdata("airstation_pass");
+	document.getElementById("encrypted_id").value = rsa_encrypt(exponent, modulus, plaintext);
+	// } RSA ENCRYPTO
+	document.getElementById("authform").submit();
+}
+
+function adjustDisp()
+{
+	var ua_attr = 0x00000000;
+	if(ua_attr & 0x00000010)
+	{// mobile
+	}
+	else
+	{// PC
+//		document.getElementById("login_base").style.top="50%";
+		document.getElementById("login_base").style.left="50%";
+//		document.getElementById("login_base").style.marginTop="-180px";
+		document.getElementById("login_base").style.marginLeft="-162px";
+	}
+	document.getElementById("login_base").style.display="";
+}
+
+function handleBodyOnLoad()
+{
+	beParent();
+	adjustDisp();
+	getJsonParam("DEVICE", handleDeviceParamOnComplete);
+	getJsonParam("SYSTEM", handleSystemParamOnComplete);
+	getJsonParam("LANG", handleLangParamOnComplete);
+	setCbMobile();
+}
+// -->
+</script>
+
+<script type="text/javascript" src="./LOGIN_files/jquery-1.8.0.min.js"></script>
+<script type="text/javascript" src="./LOGIN_files/common_json2lang.js"></script>
+<script type="text/javascript">
+<!--
+
+J2L.current_lang = "it";
+
+// -->
+</script>
+ <script language="JavaScript">
+  <!--
+  var exec = false;
+  function onceOnly(thform) {
+    if(exec == true){ 
+      return false;
+    } else {
+      exec = true;
+      return true;
+    } 
+  }
+  // -->
+</script>
+</head>
+<body data-fn="handleBodyOnLoad();" style="visibility: visible;">
+	<div class="login_base" id="login_base" style="left: 50%; margin-left: -162px;">
+		<div class="login_head"><!-- header -->
+			<img src="./LOGIN_files/py20_login_buffalo.png" width="112" height="21" class="login_logo" alt="BUFFALO"><br>
+			<img src="./LOGIN_files/py20_login_airstation.png" width="96" height="12">
+		</div>
+		<div class="login_contents"><!-- contents -->
+			<!-- startof main -->
+			<form onsubmit="return onceOnly(this);" method="POST" class="form_area" action="http://192.168.11.1/cgi-bin/cgi?req=inp&amp;res=login.html" id="authform">
+				<div class="login_main">
+					<div id="devinfo" class="login_devinfo">WZR-1750DHP&nbsp;&nbsp;Version 2.29</div>
+					<select class="editbox" name="lang" id="input_LANG" onchange="handleLangOnChange(this)"><option value="auto">Automatico</option><option value="jp">Giapponese</option><option value="eng">Inglese</option><option value="ko">Coreano</option><option value="de">Tedesco</option><option value="fr">Francese</option><option value="it">Italiano</option><option value="es">Spagnolo</option><option value="zh_cn">Cinese (semplificato)</option><option value="zh_tw">Cinese (tradizionale)</option><option value="ru">Russo</option><option value="br_pt">Portoghese brasiliano</option></select><br>
+					Nome utente
+					<input type="text" id="form_USERNAME" class="editbox" name="airstation_uname" placeholder="Inserire il nome utente." value="" onfocus="dispElem(&#39;help_uname&#39;, &#39;&#39;, this);" onblur="dispElem(&#39;help_uname&#39;, &#39;none&#39;, this);" onmouseover="dispElem(&#39;help_uname&#39;, &#39;&#39;, this);" onmouseout="dispElem(&#39;help_uname&#39;, &#39;none&#39;, this);"><br>
+					Password
+					<input type="password" class="editbox" name="airstation_pass" placeholder="Inserire la password." value="" data-fn="this.focus()" onfocus="dispElem(&#39;help_pass&#39;, &#39;&#39;, this);" onblur="dispElem(&#39;help_pass&#39;, &#39;none&#39;, this);" onmouseover="dispElem(&#39;help_pass&#39;, &#39;&#39;, this);" onmouseout="dispElem(&#39;help_pass&#39;, &#39;none&#39;, this);"><br>
+					<div class="ismobile">
+						<label onclick="">
+							<input type="checkbox" name="mobile" id="cb_mobile">Versione mobile
+						</label>
+					</div>
+					<!-- endof main -->
+				</div>
+				<input type="submit" class="button_login" value="Accesso" onclick="handleSubmitOnClick()">
+				<textarea id="encrypted_id" name="encrypted" cols="70" rows="4" style="display:none;"></textarea>
+			<input type="hidden" name="sWebSessionnum" value="51"><input type="hidden" name="sWebSessionid" value="-709248818"></form>
+		</div>
+	</div>
+	<div class="help_uname" id="help_uname" style="display: none;">
+		Inserire il nome utente.<span id="USERNAME">admin</span>
+	</div>
+	<div class="help_pass" id="help_pass" style="display: none;">
+		Inserire la password.
+	</div>
+
+
+
+<!--
+
+-->
+
+</body></html>

@@ -1,0 +1,106 @@
+group 'com.github.ffalcinelli'
+version '1.0-SNAPSHOT'
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
+apply plugin: 'java'
+apply plugin: 'jacoco'
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+repositories {
+    mavenCentral()
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled = true
+    }
+}
+
+check.dependsOn jacocoTestReport
+
+
+ext {
+    okHttpVersion = "3.6.0"
+}
+
+dependencies {
+    compile 'org.json:json:20160810'
+    compile 'org.jsoup:jsoup:1.10.2'
+    compile "com.squareup.okhttp3:okhttp:${okHttpVersion}"
+    compile "com.squareup.okhttp3:okhttp-urlconnection:${okHttpVersion}"
+    testCompile 'junit:junit:4.11'
+    testCompile "com.squareup.okhttp3:mockwebserver:${okHttpVersion}"
+}
+
+javadoc {
+    source = sourceSets.main.allJava
+    destinationDir = file("${projectDir}/docs")
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    from javadoc
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+artifacts {
+    archives javadocJar, sourcesJar
+}
+
+signing {
+    required { isReleaseVersion && gradle.taskGraph.hasTask("uploadArchives") }
+    sign configurations.archives
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+            repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                authentication(userName: System.getenv("OSSRH_USERNAME"), password: System.getenv("OSSRH_PASSWORD"))
+            }
+
+            snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                authentication(userName: System.getenv("OSSRH_USERNAME"), password: System.getenv("OSSRH_PASSWORD"))
+            }
+
+            pom.project {
+                name 'airstationlink'
+                packaging 'jar'
+                // optionally artifactId can be defined here
+                description 'A java client for Buffalo AirStation devices'
+                url 'https://github.com/ffalcinelli/airstationlink'
+
+                scm {
+                    connection 'https://github.com/ffalcinelli/airstationlink.git'
+                    developerConnection 'https://github.com/ffalcinelli/airstationlink.git'
+                    url 'https://github.com/ffalcinelli/airstationlink'
+                }
+
+                licenses {
+                    license {
+                        name 'MIT'
+                        url 'https://opensource.org/licenses/MIT'
+                    }
+                }
+
+                developers {
+                    developer {
+                        id 'ffalcinelli'
+                        name 'Fabio Falcinelli'
+                        email 'fabio.falcinelli@gmail.com'
+                    }
+                }
+            }
+        }
+    }
+}

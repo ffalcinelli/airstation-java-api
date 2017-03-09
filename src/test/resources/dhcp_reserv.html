@@ -1,0 +1,149 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="charset=iso-8859-1">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Cache-Control" content="no-cache">
+    <meta http-equiv="Expires" content="Thu, 01 Dec 1994 16:00:00 GMT"><meta http-equiv="X-UA-Compatible" content="IE=8"><META http-equiv="Content-Style-Type" content="text/css"><LINK rel="stylesheet" href="/images/css/WZR-1750DHP-229102-style-LATIN1_IT.css" type="text/css"><LINK rel="stylesheet" href="/images/css/WZR-1750DHP-229102-style-ad-LATIN1_IT.css" type="text/css">
+
+    <script type="text/javascript">
+        <!--
+        if (self === top) {
+            location.href='/cgi-bin/cgi?req=frm&frm=advanced.html&CAT=LAN&ITEM=DHCP';
+        }
+        //-->
+    </script>
+
+    <meta http-equiv="Content-Script-Type" content="text/javascript">
+    <script src="/js/OpenHelp.js"></script>
+
+    <script type="text/javascript" src="/js/jquery/jquery-1.8.0.min.js"></script>
+    <script type="text/javascript" src="/js/jquery/common_json2lang.js"></script>
+    <script type="text/javascript">
+        <!--
+
+        J2L.current_lang = "it";
+
+        // -->
+    </script>
+
+
+    <script type="text/javascript">
+        <!--
+        (function($){
+            $(function() {
+                $('input[name^=VAL]').on('click', function() {
+                    $('input[name=FROM_ADVANCED_ENTRANCE]').remove();
+                });
+            });
+        }(jQuery));
+        function show_help() {
+            if (parent && parent.document.getElementById('content_help')) {
+                if (parent.document.getElementById('content_help').src
+                    !== '/cgi-bin/cgi?req=frm&frm=help_dhcps_lease.html') {
+                    parent.document.getElementById('content_help').src =
+                        '/cgi-bin/cgi?req=frm&frm=help_dhcps_lease.html';
+                }
+            }
+        }
+        //-->
+    </script>
+
+    <script language="JavaScript">
+        <!--
+        var exec = false;
+        function onceOnly(thform) {
+            if(exec == true){
+                return false;
+            } else {
+                exec = true;
+                return true;
+            }
+        }
+        // -->
+    </script>
+</head>
+
+
+
+<body class="AS_BODY" onLoad="show_help();">
+<br>
+
+
+
+<!--  -->
+
+
+
+
+<form   onsubmit="return onceOnly(this);"  method="POST" action="/cgi-bin/cgi?req=inp&res=dhcps_lease.html">
+
+
+
+
+
+
+
+
+
+    <table class="AD_TTL2">
+        <tbody>
+        <tr><td><span data-file=dhcps_lease class=label_t9_dhcps_lease ></span> </td></tr>
+        </tbody>
+    </table>
+
+    <table class="AD_LIST">
+        <tbody>
+        <tr>
+            <th><span data-file=dhcps_lease class=label_t10_dhcps_lease ></span></th>
+            <th><span data-file=dhcps_lease class=label_t11_dhcps_lease ></span></th>
+            <th><span data-file=dhcps_lease class=label_t12_dhcps_lease ></span></th>
+            <th><span data-file=dhcps_lease class=label_t13_dhcps_lease ></span></th>
+            <th><span data-file=dhcps_lease class=label_t14_dhcps_lease ></span></th>
+        </tr>
+
+
+        <tr><td>192.168.11.3(*)</td><td>AA:BB:CC:DD:EE:FF</td><td>--:--:--</td><td><span data-file=dhcps_lease class=label_t16b_dhcps_lease ></span></td><td>	<input type="button" value="" data-file=dhcps_lease data-value="label_t19_dhcps_lease" onClick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease_edit.html&edittag=1'">
+            <input type="submit" value="" data-file=dhcps_lease data-value="label_t20_dhcps_lease" name="DEL1">
+        </td></tr>
+        <tr><td>192.168.11.4</td><td>00:11:22:33:44:55</td><td>--:--:--</td><td><span data-file=dhcps_lease class=label_t16b_dhcps_lease ></span></td><td>	<input type="button" value="" data-file=dhcps_lease data-value="label_t19_dhcps_lease" onClick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease_edit.html&edittag=9'">
+            <input type="submit" value="" data-file=dhcps_lease data-value="label_t20_dhcps_lease" name="DEL9">
+        </td></tr>
+        <tr><td>192.168.11.5</td><td>66:77:88:99:AA:BB</td><td>--:--:--</td><td><span data-file=dhcps_lease class=label_t16b_dhcps_lease ></span></td><td>	<input type="button" value="" data-file=dhcps_lease data-value="label_t19_dhcps_lease" onClick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease_edit.html&edittag=10'">
+            <input type="submit" value="" data-file=dhcps_lease data-value="label_t20_dhcps_lease" name="DEL10">
+        </td></tr>
+        <tr><td>192.168.11.6</td><td>CC:DD:EE:FF:00:11</td><td>--:--:--</td><td><span data-file=dhcps_lease class=label_t16b_dhcps_lease ></span></td><td>	<input type="button" value="" data-file=dhcps_lease data-value="label_t19_dhcps_lease" onClick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease_edit.html&edittag=2'">
+            <input type="submit" value="" data-file=dhcps_lease data-value="label_t20_dhcps_lease" name="DEL2">
+        </td></tr>
+        <tr><td>192.168.11.14</td><td>22:33:44:55:66:77</td><td>--:--:--</td><td><span data-file=dhcps_lease class=label_t16b_dhcps_lease ></span></td><td>	<input type="button" value="" data-file=dhcps_lease data-value="label_t19_dhcps_lease" onClick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease_edit.html&edittag=11'">
+            <input type="submit" value="" data-file=dhcps_lease data-value="label_t20_dhcps_lease" name="DEL11">
+        </td></tr>
+        <tr><td>192.168.11.2</td><td>88:99:AA:BB:CC:DD</td><td>161:39:13</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL0"></td></tr>
+        <tr><td>192.168.11.7</td><td>EE:FF:00:11:22:33</td><td>110:59:46</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL3"></td></tr>
+        <tr><td>192.168.11.8</td><td>44:55:66:77:88:99</td><td>167:26:56</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL4"></td></tr>
+        <tr><td>192.168.11.9</td><td>AA:BB:CC:DD:EE:00</td><td>153:22:24</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL5"></td></tr>
+        <tr><td>192.168.11.10</td><td>AA:BB:CC:DD:EE:11</td><td>165:19:23</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL6"></td></tr>
+        <tr><td>192.168.11.11</td><td>AA:BB:CC:DD:EE:22</td><td>158:42:26</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL7"></td></tr>
+        <tr><td>192.168.11.105</td><td>AA:BB:CC:DD:EE:33</td><td>102:4:43</td><td><span data-file=dhcps_lease class=label_t16a_dhcps_lease ></span></td><td>	<input type="submit" value="" data-file=dhcps_lease data-value="label_t18_dhcps_lease" name="VAL8"></td></tr>
+
+        </tbody>
+    </table>
+
+    <p class="notice">
+        <span data-file=dhcps_lease class=label_client_ipaddr_dhcps_lease ></span><span data-file=dhcps_lease class=label_t21a_dhcps_lease ></span>192.168.11.3<span data-file=dhcps_lease class=label_t21b_dhcps_lease ></span>
+    </p>
+
+
+
+    <p>
+        <input type="button" value="" data-file=dhcps_lease data-value="label_add_lease_info_dhcps_lease"
+               onclick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease_edit.html&amp;edittag=-1&amp;EDITTAG_FROM_NEW=1'" />
+    </p>
+
+    <p>
+        <input type="button" value="" data-file=dic data-value="common_dic_BUTTON_REFRESH"
+               onClick="location.href='/cgi-bin/cgi?req=frm&amp;frm=dhcps_lease.html'">
+    </p>
+    <input type=hidden name=sWebSessionnum value=32><input type=hidden name=sWebSessionid value=414425248></form>
+</body>
+</html>
