@@ -1,4 +1,4 @@
-# Buffalo AirStation Link
+# Buffalo AirStation Java API
 
 [![Build Status](https://travis-ci.org/ffalcinelli/airstation-java-api.png)](https://travis-ci.org/ffalcinelli/airstation-java-api)
 [![Coverage Status](https://img.shields.io/codecov/c/github/ffalcinelli/airstation-java-api/master.svg)](https://codecov.io/github/ffalcinelli/airstation-java-api)
