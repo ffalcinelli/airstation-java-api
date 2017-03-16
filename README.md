@@ -64,4 +64,4 @@ Development is still in progress, right now just a basic set of functionalities 
 
 ## API Reference Documentation
 
-The API Reference Documentation for AirStationLink can be found [here](https://ffalcinelli.github.io/airstationlink).
+The API Reference Documentation for AirStationLink can be found [here](https://ffalcinelli.github.io/airstation-java-api).
