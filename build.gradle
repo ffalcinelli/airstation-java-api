@@ -74,16 +74,16 @@ uploadArchives {
             }
 
             pom.project {
-                name 'airstationlink'
+                name 'airstation-java-api'
                 packaging 'jar'
                 // optionally artifactId can be defined here
                 description 'A java client for Buffalo AirStation devices'
-                url 'https://github.com/ffalcinelli/airstationlink'
+                url 'https://github.com/ffalcinelli/airstation-java-api'
 
                 scm {
-                    connection 'https://github.com/ffalcinelli/airstationlink.git'
-                    developerConnection 'https://github.com/ffalcinelli/airstationlink.git'
-                    url 'https://github.com/ffalcinelli/airstationlink'
+                    connection 'https://github.com/ffalcinelli/airstation-java-api.git'
+                    developerConnection 'https://github.com/ffalcinelli/airstation-java-api.git'
+                    url 'https://github.com/ffalcinelli/airstation-java-api'
                 }
 
                 licenses {
