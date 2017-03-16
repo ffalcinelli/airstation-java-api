@@ -10,12 +10,12 @@ The only supported model is WZR-1750DHP since it's the only one I own, it may wo
 
 ## Quick start
 
-Simple like this
+It's simple like this
 
 ```java
-AirStation airStation = new AirStation("http://192.168.11.1", "admin", "password");
+AirStation airStation = new AirStation("http://192.168.11.1");
 try {
-    airStation.open();
+    airStation.login("admin", "password");
     System.out.println(airStation.getDevice().toString(4));
 } catch (Exception e) {
     e.printStackTrace();
@@ -40,6 +40,22 @@ will return a JSON like
     "MODEL": "WZR-1750DHP",
     "REGION": "EU"
 }
+```
+
+Each method has an asynchronous version accepting an `AsyncCallback<T>` instance:
+
+```java
+airStation.getDevice(new AsyncCallback<JSONObject>() {
+            @Override
+            public void onFailure(Throwable t) {
+                System.err.println(t.getMessage());
+            }
+
+            @Override
+            public void onSuccess(JSONObject data) {
+                System.out.println(data.toString(4));
+            }
+        });
 ```
 
 ## Development

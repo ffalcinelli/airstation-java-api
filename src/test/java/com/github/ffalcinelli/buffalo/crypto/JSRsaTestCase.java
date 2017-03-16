@@ -9,14 +9,14 @@ import static org.junit.Assert.assertNotEquals;
 /**
  * Created by fabio on 28/02/17.
  */
-public class RsaTestCase {
+public class JSRsaTestCase {
 
-    private Rsa rsa;
+    private JSRsa JSRsa;
 
     @Before
     public void setUp() {
 
-        rsa = new Rsa("65537",
+        JSRsa = new JSRsa("65537",
                 "A5261939975948BB7A58DFFE5FF54E65F0498F9175F5A09288810B8975871E99" +
                         "AF3B5DD94057B0FC07535F5F97444504FA35169D461D0D30CF0192E307727C06" +
                         "5168C788771C561A9400FB49175E9E6AA4E23FE11AF69E9412DD23B0CB6684C4" +
@@ -25,17 +25,17 @@ public class RsaTestCase {
 
     @Test
     public void base64() {
-        assertEquals("", rsa.hexToBase64(""));
-        assertEquals("ASNFZ4mrze8=", rsa.hexToBase64("0123456789ABCDEF"));
+        assertEquals("", JSRsa.hexToBase64(""));
+        assertEquals("ASNFZ4mrze8=", JSRsa.hexToBase64("0123456789ABCDEF"));
     }
 
     //TODO: test with decrypt logic
     @Test
     public void encrypt() {
-        assertNotEquals("this is a test string", rsa.encrypt("this is a test string"));
-        assertNotEquals("", rsa.encrypt("çÇ"));
-        assertNotEquals("", rsa.encrypt(String.valueOf(Character.toChars(0xFB4))));
-        assertNotEquals("", rsa.encrypt("1234"));
+        assertNotEquals("this is a test string", JSRsa.encrypt("this is a test string"));
+        assertNotEquals("", JSRsa.encrypt("çÇ"));
+        assertNotEquals("", JSRsa.encrypt(String.valueOf(Character.toChars(0xFB4))));
+        assertNotEquals("", JSRsa.encrypt("1234"));
 
     }
 
@@ -45,7 +45,7 @@ public class RsaTestCase {
         for (int i = 0; i < 512 + 12; i++) {
             sb.append("a");
         }
-        rsa.encrypt(sb.toString());
+        JSRsa.encrypt(sb.toString());
     }
 
 

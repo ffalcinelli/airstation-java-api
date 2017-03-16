@@ -2,22 +2,13 @@ package com.github.ffalcinelli.buffalo.airstation;
 
 import com.github.ffalcinelli.buffalo.exception.AirStationException;
 import junit.framework.TestCase;
-import okhttp3.HttpUrl;
-import okhttp3.mockwebserver.Dispatcher;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import okhttp3.mockwebserver.RecordedRequest;
+import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 
-import static com.github.ffalcinelli.buffalo.utils.Utils.closeIgnoreException;
 import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -25,139 +16,32 @@ import static org.junit.Assert.assertNotEquals;
 /**
  * Created by fabio on 28/02/17.
  */
-public class AirStationTestCase {
+public class AirStationTestCase extends AbstractAirStationTestCase {
 
-    String[] jsonResources = new String[]{
-            "AOSS",
-            "DEVCTRL",
-            "DEVICE",
-            "FUNCTION",
-            "GUEST",
-            "ICON",
-            "LANG",
-            "NAS",
-            "PARENTAL",
-            "QOS",
-            "SYSTEM",
-            "WIRELESS",
-            "WPS",
-            "BUSY",
-            "DLNA",
-            "TORRENT",
-            "SAMBA",
-            "EXTENDERMONITOR",
-            "WEB_AXS"
-    };
-    String[] formElements = new String[]{
-            "do_wol_DEVCTRL",
-            "button_AOSS",
-            "basic_setting_DEVCTRL",
-            "basic_setting_WIRELESS",
-            "basic_setting_GUEST",
-            "basic_setting_NAS",
-            "button_QOS",
-            "basic_setting_QOS",
-            "basic_setting_PARENTAL",
-            "button_GUEST",
-            "button_NAS_redetect"
-    };
-    AirStation airStation;
-    HttpUrl baseUrl;
 
-    @Before
-    public void setUp() throws IOException {
-        // Create a MockWebServer. These are lean enough that you can create a new
-        // instance for every unit test.
-        MockWebServer server = new MockWebServer();
-
-        server.setDispatcher(new Dispatcher() {
-            @Override
-            public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
-
-                try {
-                    if (request.getPath().equals("/cgi-bin/cgi?req=twz")) {
-                        if (airStation.isLoggedIn())
-                            return mockHtmlResponse("main");
-                        else
-                            return mockHtmlResponse("login");
-                    }
-                    if (request.getPath().equals("/cgi-bin/cgi?req=inp&res=login.html")) {
-                        if (request.getMethod().equalsIgnoreCase("GET"))
-                            return mockHtmlResponse("login");
-                    }
-                    if (request.getPath().equals("/cgi-bin/cgi?req=twz&frm=logout.html")) {
-                        if (request.getMethod().equalsIgnoreCase("GET"))
-                            return mockHtmlResponse("login");
-                    }
-                    if (request.getPath().startsWith("/cgi-bin/cgi?req=frm&frm=dhcps_lease.html&rnd=")) {
-                        return mockHtmlResponse("dhcp_reserv");
-                    }
-                    for (String resource : jsonResources) {
-                        if (request.getPath().startsWith(String.format("/cgi-bin/cgi?req=fnc&fnc=%%24{get_json_param(%s,", resource)))
-                            return mockJsonResponse(resource);
-                    }
-                    for (String element : formElements) {
-//                        System.out.println(request.getBody().readString(Charset.defaultCharset()));
-                        if (request.getPath().startsWith("/cgi-bin/cgi?req=set&t="))
-                            return new MockResponse().setBody("OK").setResponseCode(200);
-                    }
-
-                    return new MockResponse().setResponseCode(404);
-                } catch (IOException e) {
-                    return new MockResponse().setResponseCode(500);
-                }
-            }
-        });
-
-        // Start the server.
-        server.start();
-
-        // Ask the server for its URL. You'll need this to make HTTP requests.
-        baseUrl = server.url("/");
-
-        airStation = new AirStation(baseUrl.toString(), "admin", "password", "utf-8");
-        airStation.open();
+    @Override
+    public void setupConnection() throws IOException {
+        airStation.login("admin", "password");
     }
 
-    @After
-    public void tearDown() {
-        closeIgnoreException(airStation);
-    }
 
-    public MockResponse mockJsonResponse(String name) throws IOException {
-        return new MockResponse().setBody(jsonFromFixture(name).toString(4)).setResponseCode(200);
-    }
-
-    public MockResponse mockHtmlResponse(String name) throws IOException {
-        return new MockResponse().setBody(readFixture(name, "html")).setResponseCode(200).setHeader("Set-Cookie", "mobile=yes");
-    }
-
-    public JSONObject jsonFromFixture(String name) throws IOException {
-        return new JSONObject(readFixture(name, "json"));
-    }
-
-    public String readFixture(String name, String ext) throws IOException {
-        BufferedReader reader = new BufferedReader(
-                new InputStreamReader(
-                        ClassLoader.getSystemClassLoader().getResourceAsStream(name.toLowerCase() + "." + ext)));
-        StringBuilder sb = new StringBuilder();
-        String line;
-        while ((line = reader.readLine()) != null) {
-            sb.append(line).append("\n");
-        }
-        return sb.toString();
+    @Test
+    public void login() throws IOException {
+        airStation.login("admin", "password");
+        assertTrue(airStation.getAdapter().isLoggedIn());
     }
 
     @Test
-    public void open() throws IOException {
-        airStation.open();
-        assertTrue(airStation.isLoggedIn());
+    public void loginFailed() throws IOException {
+        denyLogin();
+        assertResultNotOk(airStation.login("admin", "wrong_password"));
+        assertFalse(isLoggedIn());
     }
 
     @Test
     public void close() throws IOException {
         airStation.close();
-        assertFalse(airStation.isLoggedIn());
+        assertFalse(isLoggedIn());
     }
 
     @Test
@@ -278,8 +162,14 @@ public class AirStationTestCase {
     }
 
     @Test(expected = AirStationException.class)
-    public void throwExceptionWhenErrorText() throws AirStationException {
-        airStation.getDocument("<div class=\"errortxt\">This is an error</dv>");
+    public void throwExceptionWhenErrorText() throws IOException {
+        Response response = new Response.Builder()
+                .request(new Request.Builder().url(baseUrl).build())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .body(ResponseBody.create(MediaType.parse("text/html"), "<div class=\"errortxt\">This is an error</dv>"))
+                .build();
+        RequestAdapter.responseToDocument(response);
     }
 
 //    @Test
@@ -296,100 +186,73 @@ public class AirStationTestCase {
 
     @Test
     public void doWol() throws IOException {
-        assertTrue(airStation.wol(new JSONObject().put("MAC", "aa:bb:cc:dd:ee:ff")));
+        assertResultOk(airStation.wol("aa:bb:cc:dd:ee:ff"));
     }
 
     @Test
     public void doAoss() throws IOException {
-        assertTrue(airStation.aoss());
+        assertResultOk(airStation.aoss());
     }
 
     @Test(expected = IllegalStateException.class)
-    public void setIllegalStateException() throws IOException{
+    public void setIllegalStateException() throws IOException {
         airStation.close();
         airStation.aoss();
     }
 
     @Test
     public void updateDeviceInfo() throws IOException {
-        assertTrue(airStation.updateDeviceInfo(new JSONObject()
-                .put("MAC", "aa:bb:cc:dd:ee:ff")
-                .put("IP", "192.168.11.2")
-                .put("ID", "1")
-                .put("QOS", 2)
-                .put("PARENTAL", true)
-                .put("DISCONNECT", false)
-        ));
+        assertResultOk(airStation.updateDevCtrl(this.device));
     }
 
     @Test
     public void wirelessBasicSetup() throws IOException {
-        JSONObject wifi = new JSONObject()
-                .put("SSID", "ssid")
-                .put("FUNC", 1)
-                .put("KEY", "secr3t")
-                .put("ENCTYPE", "WPA-AES")
-                .put("CH", 1)
-                .put("BW", 80);
-
-        assertTrue(airStation.wirelessBasicSetup(
+        assertResultOk(airStation.wirelessBasicSetup(
                 wifi, wifi
         ));
     }
 
     @Test
     public void guestBasicSetup() throws IOException {
-        JSONObject guest = new JSONObject()
-                .put("SSID", "ssid")
-                .put("KEY", "secr3t")
-                .put("ENCTYPE", "WPA-AES")
-                .put("TIME", 24);
-
-        assertTrue(airStation.guestBasicSetup(guest));
+        assertResultOk(airStation.guestBasicSetup(guest));
     }
 
     @Test
     public void nasBasicSetup() throws IOException {
-        assertTrue(airStation.nasBasicSetup(new JSONObject()
-                .put("SAMBA", true)
-                .put("TORRENT", true)
-                .put("DLNA", false)
-                .put("WEBAXS", false)
-                .put("NASCOMNAME", "NAME")
-        ));
+        assertResultOk(airStation.nasBasicSetup(nas));
     }
 
     @Test
     public void enableQOS() throws IOException {
-        assertTrue(airStation.enableQos(true));
-        assertTrue(airStation.enableQos(false));
+        assertResultOk(airStation.qos(true));
+        assertResultOk(airStation.qos(false));
     }
 
     @Test
     public void setQosPolicy() throws IOException {
-        assertTrue(airStation.setQosPolicy("VIDEO", true));
-        assertTrue(airStation.setQosPolicy("VIDEO", false));
+        assertResultOk(airStation.setQosPolicy("VIDEO", true));
+        assertResultOk(airStation.setQosPolicy("VIDEO", false));
     }
 
     @Test
     public void setParentalPolicy() throws IOException {
-        assertTrue(airStation.setParentalPolicy(0));
+        assertResultOk(airStation.setParentalPolicy(0));
     }
 
     @Test
     public void enableGuestWifi() throws IOException {
-        assertTrue(airStation.enableGuestWifi(true));
-        assertTrue(airStation.enableGuestWifi(false));
+        assertResultOk(airStation.guest(true));
+        assertResultOk(airStation.guest(false));
     }
 
     @Test
     public void detectNas() throws IOException {
-        assertTrue(airStation.detectNas());
+        assertResultOk(airStation.detectNas());
     }
 
     @Test
     public void addressReservationList() throws IOException {
-        JSONArray jsonArray = airStation.getAddressReservationList();
+        JSONArray jsonArray = airStation.getDhcpReservation();
         assertNotEquals(0, jsonArray.length());
         assertEquals("192.168.11.3", jsonArray.getJSONObject(0).get("IP"));
     }
@@ -397,16 +260,11 @@ public class AirStationTestCase {
     @Test(expected = IllegalStateException.class)
     public void addressReservationNotLoggedIn() throws IOException {
         airStation.close();
-        airStation.getAddressReservationList();
+        airStation.getDhcpReservation();
     }
 
     @Test
     public void editDhcpEntry() throws IOException {
-        airStation.editAddressReservation(new JSONObject()
-                .put("IP", "192.168.11.2")
-                .put("MAC", "aa:bb:cc:dd:ee:ff")
-                .put("ID", "1")
-        );
+        assertResultOk(airStation.updateDhcpReservation(device));
     }
-
 }

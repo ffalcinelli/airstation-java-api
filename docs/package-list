@@ -1,4 +1,5 @@
 com.github.ffalcinelli.buffalo.airstation
 com.github.ffalcinelli.buffalo.crypto
 com.github.ffalcinelli.buffalo.exception
+com.github.ffalcinelli.buffalo.models
 com.github.ffalcinelli.buffalo.utils

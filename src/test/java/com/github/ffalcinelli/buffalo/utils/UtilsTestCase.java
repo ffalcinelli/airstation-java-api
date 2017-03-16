@@ -5,9 +5,6 @@ import org.junit.Test;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.HashMap;
-import java.util.Map;
 
 import static com.github.ffalcinelli.buffalo.utils.Utils.closeIgnoreException;
 import static junit.framework.TestCase.assertFalse;
@@ -28,13 +25,6 @@ public class UtilsTestCase {
         assertTrue(json.has("key"));
         assertEquals("value", json.getString("key"));
         assertEquals("there", Utils.getStringOrDefault(json, "here", "value"));
-    }
-
-    @Test
-    public void mapToForm() throws UnsupportedEncodingException {
-        Map<String, String> params = new HashMap<>();
-        params.put("inputName", "inputValue");
-        assertEquals("inputName=inputValue", Utils.mapToFormEncoded(params, "utf-8"));
     }
 
     @Test

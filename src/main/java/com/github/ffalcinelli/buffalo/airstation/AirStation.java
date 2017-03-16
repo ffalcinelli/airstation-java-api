@@ -1,575 +1,914 @@
 package com.github.ffalcinelli.buffalo.airstation;
 
-import com.github.ffalcinelli.buffalo.crypto.Rsa;
-import com.github.ffalcinelli.buffalo.exception.AirStationException;
-import com.github.ffalcinelli.buffalo.utils.Utils;
+import com.github.ffalcinelli.buffalo.models.NasSettings;
+import com.github.ffalcinelli.buffalo.models.NetworkDevice;
+import com.github.ffalcinelli.buffalo.models.WifiSettings;
 import okhttp3.*;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
+import static com.github.ffalcinelli.buffalo.airstation.RequestAdapter.*;
+import static com.github.ffalcinelli.buffalo.airstation.RequestAdapter.JSONFunction.*;
+import static com.github.ffalcinelli.buffalo.utils.Utils.closeIgnoreException;
 import static com.github.ffalcinelli.buffalo.utils.Utils.getStringOrDefault;
-import static com.github.ffalcinelli.buffalo.utils.Utils.mapToFormEncoded;
 
 /**
+ * AirStation handles the connection to an AirStation device.
+ * <p>
+ * Provides a Java API for the functions exposed by the devices.
+ * <p>
  * Created by fabio on 24/02/17.
  */
 public class AirStation implements Closeable {
 
-    private String url;
-    private String username;
-    private String password;
-    private String encoding;
-    private String webSessionNum;
-    private String webSessionId;
+    private JSONObject settings;
     private OkHttpClient client;
+    private RequestAdapter adapter;
 
-    public static final MediaType FORM = MediaType.parse("application/x-www-form-urlencoded"); // charset=UTF-8");
-
-    static CookieJar defaultCookieJar() {
-        return new CookieJar() {
-            private final HashMap<HttpUrl, List<Cookie>> cookieStore = new HashMap<>();
-
-            @Override
-            public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
-                cookieStore.put(url, cookies);
-            }
-
-            @Override
-            public List<Cookie> loadForRequest(HttpUrl url) {
-                List<Cookie> cookies = cookieStore.get(url);
-                return cookies != null ? cookies : new ArrayList<Cookie>();
-            }
-        };
+    public AirStation(String url) {
+        this(url, getDefaultCookieJar());
     }
 
-    public AirStation(String url, String username, String password) {
-        this(url, username, password, "utf-8", null);
+    public AirStation(String url, CookieJar cookieJar) {
+        this(new JSONObject().put("url", url), cookieJar);
     }
 
-    public AirStation(String url, String username, String password, String encoding) {
-        this(url, username, password, encoding, null);
+    public AirStation(JSONObject settings) {
+        this(settings, null);
     }
 
-    public AirStation(String url, String username, String password, String encoding, CookieJar cookieJar) {
-        this.encoding = encoding;
-        this.username = username;
-        this.password = password;
-        this.url = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    public AirStation(JSONObject settings, CookieJar cookieJar) {
+        this.adapter = new RequestAdapter(
+                getStringOrDefault(settings, "url", DEFAULT_URL),
+                getStringOrDefault(settings, "encoding", DEFAULT_ENCODING)
+        );
+        this.settings = settings;
         this.client = new OkHttpClient.Builder()
-                .cookieJar(cookieJar != null ? cookieJar : defaultCookieJar())
+                .cookieJar(cookieJar != null ? cookieJar : RequestAdapter.getDefaultCookieJar())
                 .build();
+
     }
 
-    private String encryptPassword(String password, Document page) {
-        String data = page.data();
-        final String EXP_PATTERN = "exponent = \"";
-        final String MOD_PATTERN = "modulus = \"";
-        int expIdx = data.indexOf(EXP_PATTERN);
-        int modIdx = data.indexOf(MOD_PATTERN);
-        Rsa rsa = new Rsa(data.substring(expIdx + EXP_PATTERN.length(),
-                data.indexOf("\"", expIdx + EXP_PATTERN.length())),
-                data.substring(modIdx + MOD_PATTERN.length(),
-                        data.indexOf("\"", modIdx + MOD_PATTERN.length())));
-        try {
-            return rsa.encrypt("airstation_pass=" + password);
-        } catch (Exception e) {
-            return null;
+    /**
+     * Get configuration settings as a {@link JSONObject}.
+     *
+     * @return The {@link JSONObject} representing the current settings.
+     */
+    public JSONObject getSettings() {
+        return settings;
+    }
+
+    /**
+     * Get the AirStation {@link RequestAdapter} in use.
+     *
+     * @return The Airstation {@link RequestAdapter} in use.
+     */
+    public RequestAdapter getAdapter() {
+        return adapter;
+    }
+
+    /**
+     * Call the `get_json_param` device function.
+     *
+     * @param param The JSON param to retrieve.
+     * @return A {@link JSONObject} with the data.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject getJSONParam(final JSONFunction param) throws IOException {
+        if (!adapter.isLoggedIn())
+            throw new IllegalStateException("You must be logged in to perform this request.");
+        return new JSONObject(client.newCall(adapter.getJSONParamRequest(param.name())).execute().body().string());
+    }
+
+    /**
+     * Tell the device to perform an action upon the given parameters.
+     *
+     * @param params The parameters map.
+     * @return A {@link JSONObject} containing the device response. Usually a {"RESULT": "OK"} response.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject set(final Map<String, String> params) throws IOException {
+        if (!adapter.isLoggedIn())
+            throw new IllegalStateException("You must be logged in to perform this request.");
+        String response = client.newCall(adapter.getSETRequest(params)).execute().body().string();
+        return new JSONObject().put("RESULT", response);
+    }
+
+    /**
+     * Call the `get_json_param` device function.
+     * Asynchronous version of {@link #getJSONParam(RequestAdapter.JSONFunction)} method.
+     *
+     * @param param    The JSON param to retrieve.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getJSONParam(final JSONFunction param, final AsyncCallback<JSONObject> callback) {
+        if (!adapter.isLoggedIn())
+            callback.onFailure(new IllegalStateException("You must be logged in to perform this request."));
+        else {
+            client.newCall(adapter.getJSONParamRequest(param.name())).enqueue(new Callback() {
+                @Override
+                public void onFailure(Call call, IOException e) {
+                    callback.onFailure(e);
+                }
+
+                @Override
+                public void onResponse(Call call, Response response) throws IOException {
+                    callback.onSuccess(new JSONObject(response.body().string()));
+                }
+            });
         }
     }
 
+    /**
+     * Tell the device to perform an action upon the given parameters.
+     * Asynchronous version of {@link #set(Map) set} method.
+     *
+     * @param params   The parameters map.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void set(final Map<String, String> params, final AsyncCallback<JSONObject> callback) {
+        if (!adapter.isLoggedIn())
+            callback.onFailure(new IllegalStateException("You must be logged in to perform this request."));
+        else {
+            try {
+                client.newCall(adapter.getSETRequest(params)).enqueue(new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        callback.onFailure(e);
+                    }
 
-    Document getDocument(String body) throws AirStationException {
-        Document doc = Jsoup.parse(body);
-        for (Element div : doc.getElementsByAttributeValue("class", "errortxt")) {
-            throw new AirStationException(div.text());
-        }
-        return doc;
-    }
-
-    public void open() throws IOException {
-        Request request = new Request.Builder()
-                .url(String.format("%s/cgi-bin/cgi?req=twz", url))
-                .build();
-        Response response = client.newCall(request).execute();
-        Document doc = getDocument(response.body().string());
-
-        if (doc.getElementsByTag("title").first().text().equalsIgnoreCase("login")) {
-            Map<String, String> params = new HashMap<>();
-            params.put("lang", "auto");
-            params.put("airstation_uname", username);
-            webSessionId = doc.getElementsByAttributeValue("name", "sWebSessionid").first().attr("value");
-            webSessionNum = doc.getElementsByAttributeValue("name", "sWebSessionnum").first().attr("value");
-            params.put("sWebSessionnum", webSessionNum);
-            params.put("sWebSessionid", webSessionId);
-            params.put("encrypted", encryptPassword(password, doc));
-
-            RequestBody body = RequestBody.create(FORM, mapToFormEncoded(params, encoding));
-            request = new Request.Builder()
-                    .url(String.format("%s/cgi-bin/cgi?req=inp&res=login.html", url))
-                    .post(body)
-                    .build();
-            response = client.newCall(request).execute();
-
-            getDocument(response.body().string());
-        } else {
-            //TODO: use a logger or just ignore?
-            System.out.println("Already logged in");
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        callback.onSuccess(new JSONObject().put("RESULT", response.body().string()));
+                    }
+                });
+            } catch (UnsupportedEncodingException e) {
+                callback.onFailure(e);
+            }
         }
     }
 
+    /**
+     * Open a session to the device by logging in.
+     *
+     * @param username The username (usually "admin").
+     * @param password The password (if it's not been changed set it to "password").
+     * @return a {@link JSONObject} {"RESULT": "OK"} if all went fine, {"RESULT": "FAIL", "REASON": "..."} otherwise.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject login(final String username, final String password) throws IOException {
+        if (!adapter.isLoggedIn()) {
+            Response response = client.newCall(
+                    adapter.doLoginFromHomeResponse(username, password, client.newCall(
+                            adapter.getHomeRequest()
+                    ).execute())
+            ).execute();
+            return adapter.toJSONResponse(response, true);
+        }
+        //TODO: check this up if it's really logged in
+        return new JSONObject().put("RESULT", "OK");
+
+    }
+
+    /**
+     * Open a session to the device by logging in.
+     * Asynchronous version of {@link #login(String, String)} method.
+     *
+     * @param username The username (usually "admin").
+     * @param password The password (if it's not been changed set it to "password").
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void login(final String username, final String password, final AsyncCallback<JSONObject> callback) {
+        client.newCall(adapter.getHomeRequest()).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onFailure(e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                Request request = adapter.doLoginFromHomeResponse(username, password, response);
+                if (request != null) {
+                    client.newCall(request).enqueue(new Callback() {
+                        @Override
+                        public void onFailure(Call call, IOException e) {
+                            callback.onFailure(e);
+                        }
+
+                        @Override
+                        public void onResponse(Call call, Response response) throws IOException {
+                            //TODO: handle invalid username and password. This method should return a JSONObject
+                            callback.onSuccess(adapter.toJSONResponse(response, true));
+                        }
+                    });
+                } else {
+                    callback.onSuccess(new JSONObject().put("RESULT", "OK"));
+                }
+            }
+        });
+    }
+
+    /**
+     * Close the session.
+     *
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
     @Override
     public void close() throws IOException {
-        Request request = new Request.Builder()
-                .url(String.format("%s/cgi-bin/cgi?req=twz&frm=logout.html", url))
-                .build();
-        Response response = client.newCall(request).execute();
-        Document doc = getDocument(response.body().string());
-        webSessionId = null;
-        webSessionNum = null;
-    }
-
-    private JSONObject getJsonParam(String param) throws IOException {
-        if (!isLoggedIn())
-            throw new IllegalStateException("Not logged in!");
-        RequestBody requestBody = RequestBody.create(FORM, "");
-        Request request = new Request.Builder()
-                .url(String.format("%s/cgi-bin/cgi?req=fnc&fnc=%%24{get_json_param(%s,%d)}", url, param, System.currentTimeMillis()))
-                .post(requestBody)
-                .build();
-        Response response = client.newCall(request).execute();
-        String responseText = response.body().string();
-        return new JSONObject(responseText);
-    }
-
-    private boolean set(Map<String, String> params) throws IOException {
-        if (!isLoggedIn())
-            throw new IllegalStateException("Not logged in!");
-        RequestBody requestBody = RequestBody.create(FORM, mapToFormEncoded(params, encoding));
-        Request request = new Request.Builder()
-                .url(String.format("%s/cgi-bin/cgi?req=set&t=%d", url, System.currentTimeMillis()))
-                .post(requestBody)
-                .build();
-        Response response = client.newCall(request).execute();
-        return "OK".equalsIgnoreCase(response.body().string());
+        client.newCall(adapter.getLogoutRequest()).execute();
+        adapter.close();
     }
 
     /**
-     * Get informations about internet status
+     * Close the session.
+     * Asynchronous version of {@link #close()} method.
      *
-     * @return A {@link JSONObject} with the internet status
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void close(final AsyncCallback<JSONObject> callback) {
+        client.newCall(adapter.getLogoutRequest()).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onFailure(e);
+                closeIgnoreException(adapter);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                callback.onSuccess(adapter.toJSONResponse(response));
+                closeIgnoreException(adapter);
+            }
+        });
+    }
+
+    /**
+     * Get informations about internet status.
+     *
+     * @return A {@link JSONObject} with the internet status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getIcon() throws IOException {
-        return getJsonParam("ICON");
+        return getJSONParam(ICON);
     }
 
     /**
-     * Get informations about connected devices
+     * Get informations about internet status.
+     * Asynchronous version of {@link #getIcon()} method.
      *
-     * @return A {@link JSONObject} with the connected devices informations
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getIcon(AsyncCallback<JSONObject> callback) {
+        getJSONParam(ICON, callback);
+    }
+
+    /**
+     * Get informations about connected devices.
+     *
+     * @return A {@link JSONObject} with the connected devices informations.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getDevCtrl() throws IOException {
-        return getJsonParam("DEVCTRL");
+        return getJSONParam(DEVCTRL);
     }
 
     /**
-     * Get informations about the AirStation status
+     * Get informations about connected devices.
+     * Asynchronous version of {@link #getDevCtrl()} method.
      *
-     * @return * @return A {@link JSONObject} with the AirStation status
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getDevCtrl(AsyncCallback<JSONObject> callback) {
+        getJSONParam(DEVCTRL, callback);
+    }
+
+    /**
+     * Get informations about the AirStation status.
+     *
+     * @return A {@link JSONObject} with the AirStation status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getDevice() throws IOException {
-        return getJsonParam("DEVICE");
+        return getJSONParam(DEVICE);
     }
 
     /**
-     * Get AOSS function status
+     * Get informations about the AirStation status.
+     * Asynchronous version of {@link #getDevice()} method.
      *
-     * @return * @return A {@link JSONObject} with the AOSS status
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getDevice(AsyncCallback<JSONObject> callback) {
+        getJSONParam(DEVICE, callback);
+    }
+
+    /**
+     * Get AOSS function status.
+     *
+     * @return A {@link JSONObject} with the AOSS status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getAoss() throws IOException {
-        return getJsonParam("AOSS");
+        return getJSONParam(AOSS);
     }
 
     /**
-     * Get the wireless settings
+     * Get AOSS function status.
+     * Asycnhronous version of {@link #getAoss()} method.
      *
-     * @return * @return A {@link JSONObject} with the wireless settings
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getAoss(AsyncCallback<JSONObject> callback) {
+        getJSONParam(AOSS, callback);
+    }
+
+    /**
+     * Get the wireless settings.
+     *
+     * @return A {@link JSONObject} with the wireless settings.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getWireless() throws IOException {
-        return getJsonParam("WIRELESS");
+        return getJSONParam(WIRELESS);
     }
 
     /**
-     * Get WPS status
+     * Get the wireless settings.
+     * Asynchronous version of {@link #getWireless()} method.
      *
-     * @return * @return A {@link JSONObject} with the WPS status
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getWireless(AsyncCallback<JSONObject> callback) {
+        getJSONParam(WIRELESS, callback);
+    }
+
+    /**
+     * Get WPS status.
+     *
+     * @return A {@link JSONObject} with the WPS status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getWps() throws IOException {
-        return getJsonParam("WPS");
+        return getJSONParam(WPS);
     }
 
     /**
-     * Get NAS status
+     * Get WPS status.
+     * Asynchronous version of {@link #getWps()} method.
      *
-     * @return * @return A {@link JSONObject} with the NAS status
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getWps(AsyncCallback<JSONObject> callback) {
+        getJSONParam(WPS, callback);
+    }
+
+    /**
+     * Get NAS status.
+     *
+     * @return A {@link JSONObject} with the NAS status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getNas() throws IOException {
-        return getJsonParam("NAS");
+        return getJSONParam(NAS);
     }
 
     /**
-     * Get GUEST wireless settings
+     * Get NAS status.
+     * Asynchronous version of {@link #getNas()} method.
      *
-     * @return * @return A {@link JSONObject} with the guest wireless settings
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getNas(AsyncCallback<JSONObject> callback) {
+        getJSONParam(NAS, callback);
+    }
+
+
+    /**
+     * Get guest wireless settings.
+     *
+     * @return A {@link JSONObject} with the guest wireless settings
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getGuest() throws IOException {
-        return getJsonParam("GUEST");
+        return getJSONParam(GUEST);
     }
 
     /**
-     * Get QOS settings
+     * Get guest wireless settings.
+     * Asynchronous version of {@link #getGuest()} method.
      *
-     * @return * @return A {@link JSONObject} with the QOS settings
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getGuest(AsyncCallback<JSONObject> callback) {
+        getJSONParam(GUEST, callback);
+    }
+
+    /**
+     * Get QOS settings.
+     *
+     * @return A {@link JSONObject} with the QOS settings.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getQos() throws IOException {
-        return getJsonParam("QOS");
+        return getJSONParam(QOS);
     }
 
     /**
-     * Get Parental settings
+     * Get QOS settings.
+     * Asynchronous version of {@link #getQos()} method.
      *
-     * @return * @return A {@link JSONObject} with the parental settings
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getQos(AsyncCallback<JSONObject> callback) {
+        getJSONParam(QOS, callback);
+    }
+
+    /**
+     * Get Parental settings.
+     *
+     * @return A {@link JSONObject} with the parental settings.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getParental() throws IOException {
-        return getJsonParam("PARENTAL");
+        return getJSONParam(PARENTAL);
     }
 
     /**
-     * Get System Wide settings
+     * Get Parental settings.
+     * Asynchronous version of {@link #getParental()} method.
      *
-     * @return * @return A {@link JSONObject} with the system settings
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getParental(AsyncCallback<JSONObject> callback) {
+        getJSONParam(PARENTAL, callback);
+    }
+
+    /**
+     * Get System Wide settings.
+     *
+     * @return A {@link JSONObject} with the system settings.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getSystem() throws IOException {
-        return getJsonParam("SYSTEM");
+        return getJSONParam(SYSTEM);
     }
 
     /**
-     * Get language settings
+     * Get System Wide settings.
+     * Asynchronous version of {@link #getSystem()} method.
      *
-     * @return * @return A {@link JSONObject} with the language settings
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getSystem(AsyncCallback<JSONObject> callback) {
+        getJSONParam(SYSTEM, callback);
+    }
+
+    /**
+     * Get language settings.
+     *
+     * @return A {@link JSONObject} with the language settings.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getLang() throws IOException {
-        return getJsonParam("LANG");
+        return getJSONParam(LANG);
     }
 
     /**
-     * Get device busy status
+     * Get language settings.
+     * Asynchronous version of {@link #getLang()} method.
      *
-     * @return * @return A {@link JSONObject} with the device busy status
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getLang(AsyncCallback<JSONObject> callback) {
+        getJSONParam(LANG, callback);
+    }
+
+
+    /**
+     * Get device busy status.
+     *
+     * @return A {@link JSONObject} with the device busy status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
     public JSONObject getBusy() throws IOException {
-        return getJsonParam("BUSY");
+        return getJSONParam(BUSY);
     }
 
+    /**
+     * Get device busy status.
+     * Asynchronous version of {@link #getBusy()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getBusy(AsyncCallback<JSONObject> callback) {
+        getJSONParam(BUSY, callback);
+    }
+
+    /**
+     * Get Extender monitor function status.
+     *
+     * @return A {@link JSONObject} with the extender monitor status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
     public JSONObject getExtenderMonitor() throws IOException {
-        return getJsonParam("EXTENDERMONITOR");
+        return getJSONParam(EXTENDERMONITOR);
     }
 
+    /**
+     * Get Extender monitor function status.
+     * Asynchronous version of {@link #getExtenderMonitor()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getExtenderMonitor(AsyncCallback<JSONObject> callback) {
+        getJSONParam(EXTENDERMONITOR, callback);
+    }
+
+    /**
+     * Get DLNA function status.
+     *
+     * @return A {@link JSONObject} with DLNA status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
     public JSONObject getDlna() throws IOException {
-        return getJsonParam("DLNA");
+        return getJSONParam(DLNA);
     }
 
+    /**
+     * Get DLNA function status.
+     * Asynchronous version of {@link #getDlna()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getDlna(AsyncCallback<JSONObject> callback) {
+        getJSONParam(DLNA, callback);
+    }
+
+    /**
+     * Get Bit Torrent function status.
+     *
+     * @return A {@link JSONObject} with Bit Torrent status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
     public JSONObject getTorrent() throws IOException {
-        return getJsonParam("TORRENT");
+        return getJSONParam(TORRENT);
     }
 
+    /**
+     * Get Bit Torrent function status.
+     * Asynchronous version of {@link #getTorrent()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getTorrent(AsyncCallback<JSONObject> callback) {
+        getJSONParam(TORRENT, callback);
+    }
+
+    /**
+     * Get Web Access function status.
+     *
+     * @return A {@link JSONObject} with the Web Access status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
     public JSONObject getWebAccess() throws IOException {
-        return getJsonParam("WEB_AXS");
+        return getJSONParam(WEB_AXS);
     }
 
+    /**
+     * Get Web Access function status.
+     * Asynchronous version of {@link #getWebAccess()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getWebAccess(AsyncCallback<JSONObject> callback) {
+        getJSONParam(WEB_AXS, callback);
+    }
+
+    /**
+     * Get SAMBA function status.
+     *
+     * @return A {@link JSONObject} with the SAMBA status.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
     public JSONObject getSamba() throws IOException {
-        return getJsonParam("SAMBA");
-    }
-
-    public boolean isLoggedIn() {
-        return !Utils.isStringEmpty(webSessionId) && !Utils.isStringEmpty(webSessionNum);
+        return getJSONParam(SAMBA);
     }
 
     /**
-     * Wake on Lan the given MAC address
+     * Get SAMBA function status.
+     * Asynchronous version of {@link #getSamba()} method.
      *
-     * @param macAddress The device MAC address to send magic packet to
-     * @return true if action has been performed, false otherwise
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
      */
-    public boolean wol(String macAddress) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "do_wol_DEVCTRL");
-        params.put("mac", macAddress);
-        return set(params);
+    public void getSamba(AsyncCallback<JSONObject> callback) {
+        getJSONParam(SAMBA, callback);
     }
 
     /**
-     * Wake on Lan the given device, passed as JSON Object with at least MAC key representing the MAC address to wake
+     * Wake on Lan the given MAC address sending magic packets from the AirStation device.
      *
-     * @param device A {@link JSONObject}  representing the device
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param macAddress The device MAC address to send magic packet to.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    public boolean wol(JSONObject device) throws IOException {
-        return wol(device.getString("MAC"));
+    public JSONObject wol(String macAddress) throws IOException {
+        return set(adapter.getWolParams(macAddress));
     }
 
     /**
-     * Put AirStatin in AOSS mode
+     * Wake on Lan the given MAC address sending magic packets from the AirStation device.
+     * Asynchronous version of {@link #wol(String)} method.
      *
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param macAddress The device MAC address to send magic packet to.
+     * @param callback   The {@link AsyncCallback} to use either on success or failure events.
      */
-    public boolean aoss() throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "button_AOSS");
-        params.put("val", "Start AOSS/WPS");
-        return set(params);
-    }
-
-    /**
-     * Update informations about a connected device. Device informations are passed as a {@link JSONObject} and must contain
-     * <ul>
-     * <li>IP: String</li>
-     * <li>MAC: String</li>
-     * <li>QOS: int</li>
-     * <li>PARENTAL: boolean</li>
-     * <li>DISCONNECT: boolean</li>
-     * </ul>
-     *
-     * @param device The {@link JSONObject} representing the device info
-     * @return True if the request is received by router
-     * @throws IOException
-     */
-    public boolean updateDeviceInfo(JSONObject device) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "basic_setting_DEVCTRL");
-        params.put("name", device.optString("NAME", "Unknown"));
-        params.put("mac", device.getString("MAC"));
-        params.put("img", device.optString("IMG", "unknown"));
-        params.put("qos", String.valueOf(device.getInt("QOS")));
-        params.put("parental", device.getBoolean("PARENTAL") ? "1" : "0");
-        params.put("disconnect", device.getBoolean("DISCONNECT") ? "1" : "0");
-        return set(params);
+    public void wol(String macAddress, AsyncCallback<JSONObject> callback) {
+        set(adapter.getWolParams(macAddress), callback);
     }
 
 
     /**
-     * Appends a given suffix to the {@link JSONObject} representing the wifi basic settings.
-     * This is required to differentiate wifi A and G
+     * Put AirStation in AOSS mode.
      *
-     * @param wifi   The {@link JSONObject}  with the Wifi settings
-     * @param suffix The suffix to append to keys
-     * @return A {@link Map<String, String>} with the modified keys
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    private Map<String, String> toWifiParameterMap(JSONObject wifi, String suffix) {
-        Map<String, String> params = new HashMap<>();
-        for (String k : new String[]{"func", "ssid", "enctype", "key", "ch", "bw"})
-            params.put(k + suffix, String.valueOf(wifi.get(k.toUpperCase())));
-        return params;
+    public JSONObject aoss() throws IOException {
+        return set(adapter.getAossParams());
     }
 
     /**
-     * Update the basic wifi settings
+     * Put AirStation in AOSS mode.
+     * Asynchronous version of {@link #aoss()} method.
      *
-     * @param wifiA Settings for wifi A as {@link JSONObject}
-     * @param wifiG Settings for wifi G as {@link JSONObject}
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
      */
-    public boolean wirelessBasicSetup(JSONObject wifiA, JSONObject wifiG) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "basic_setting_WIRELESS");
-        params.putAll(toWifiParameterMap(wifiG, "_g"));
-        params.putAll(toWifiParameterMap(wifiA, "_a"));
-        return set(params);
-    }
-
-    /**
-     * Update basic Guest access settings
-     *
-     * @param guest
-     * @return True if the request is received by router
-     * @throws IOException
-     */
-    public boolean guestBasicSetup(JSONObject guest) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "basic_setting_GUEST");
-        for (String k : new String[]{"ssid", "enctype", "key"})
-            params.put(k + "_g", String.valueOf(guest.get(k.toUpperCase())));
-        params.put("time", String.valueOf(guest.get("TIME")));
-        return set(params);
+    public void aoss(AsyncCallback<JSONObject> callback) {
+        set(adapter.getAossParams(), callback);
     }
 
 
     /**
-     * Update basic NAS settings
+     * Update informations about a connected device.
      *
-     * @param nas The {@link JSONObject} with the NAS settings
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param dev The device info to update.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    public boolean nasBasicSetup(JSONObject nas) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "basic_setting_NAS");
-        params.put("samba", nas.getBoolean("SAMBA") ? "1" : "0");
-        params.put("torrent", nas.getBoolean("TORRENT") ? "1" : "0");
-        params.put("dlna", nas.getBoolean("DLNA") ? "1" : "0");
-        params.put("webaxs", nas.getBoolean("WEBAXS") ? "1" : "0");
-        params.put("nascomname", nas.getString("NASCOMNAME"));
-        return set(params);
+    public JSONObject updateDevCtrl(NetworkDevice dev) throws IOException {
+        return set(adapter.getDevCtrlParams(dev));
+    }
+
+    /**
+     * Update informations about a connected device.
+     * Asynchronous version of {@link #updateDevCtrl(NetworkDevice)} method.
+     *
+     * @param dev      The device info to update.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void updateDevCtrl(NetworkDevice dev,
+                              AsyncCallback<JSONObject> callback) {
+        set(adapter.getDevCtrlParams(dev), callback);
+    }
+
+    /**
+     * Update the basic wifi basic settings.
+     *
+     * @param a Settings for wifi A
+     * @param g Settings for wifi G
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject wirelessBasicSetup(WifiSettings a, WifiSettings g) throws IOException {
+        return set(adapter.getWifiParams(a, g));
+    }
+
+    /**
+     * Update the basic wifi basic settings.
+     * Asynchronous version of {@link #wirelessBasicSetup(WifiSettings, WifiSettings)} method.
+     *
+     * @param a        Settings for wifi A
+     * @param g        Settings for wifi G
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void wirelessBasicSetup(WifiSettings a, WifiSettings g, AsyncCallback<JSONObject> callback) {
+        set(adapter.getWifiParams(a, g), callback);
     }
 
 
     /**
-     * Enable/Disable QOS function mode
+     * Update guest wifi basic settings.
      *
-     * @param on If must be enabled or disabled
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param guest Guest wifi settings.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    public boolean enableQos(boolean on) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "button_QOS");
-        params.put("val", on ? "ON" : "OFF");
-        return set(params);
+    public JSONObject guestBasicSetup(WifiSettings guest) throws IOException {
+        return set(adapter.getGuestParams(guest));
     }
 
     /**
-     * Put router in given QOS policy mode if flag enabled is true
+     * Update guest wifi basic settings.
+     * Asynchronous version of {@link #guestBasicSetup(WifiSettings)} method.
      *
-     * @param policy  The policy to use
-     * @param enabled Whether to enable or disable the mode
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param guest    Guest wifi settings.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
      */
-    public boolean setQosPolicy(String policy, boolean enabled) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "basic_setting_QOS");
-        params.put("function", enabled ? "1" : "0");
-        params.put("polycy", policy);
-        return set(params);
+    public void guestBasicSetup(WifiSettings guest, AsyncCallback<JSONObject> callback) {
+        set(adapter.getGuestParams(guest), callback);
+    }
+
+
+    /**
+     * Update NAS basic settings.
+     *
+     * @param nas NAS function settings.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject nasBasicSetup(NasSettings nas) throws IOException {
+        return set(adapter.getNasParams(nas));
     }
 
     /**
-     * Setup the parental policy
+     * Update NAS basic settings.
+     * Asynchronous version of {@link #nasBasicSetup(NasSettings)} method.
      *
-     * @param policy The parental policy
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param nas      NAS function settings.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
      */
-    public boolean setParentalPolicy(int policy) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "basic_setting_PARENTAL");
-        params.put("polycy", String.valueOf(policy));
-        return set(params);
+    public void nasBasicSetup(NasSettings nas, AsyncCallback<JSONObject> callback) {
+        set(adapter.getNasParams(nas), callback);
     }
 
     /**
-     * Enable/Disable guest wifi access mode
+     * Enable/Disable QOS function mode.
      *
-     * @param on Whether to enable or disable the guest wifi
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param on If must be enabled or disabled.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    public boolean enableGuestWifi(boolean on) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "button_GUEST");
-        params.put("val", on ? "ON" : "OFF");
-        return set(params);
+    public JSONObject qos(boolean on) throws IOException {
+        return set(adapter.getQosParams(on));
     }
 
     /**
-     * Detect Attached Storage devices
+     * Enable/Disable QOS function mode.
+     * Asynchronous version of {@link #qos(boolean)} method.
      *
-     * @return True if the request is received by router
-     * @throws IOException
+     * @param on       If must be enabled or disabled.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
      */
-    public boolean detectNas() throws IOException {
-        Map<String, String> params = new HashMap<>();
-        params.put("el", "button_NAS_redetect");
-        return set(params);
+    public void qos(boolean on, AsyncCallback<JSONObject> callback) {
+        set(adapter.getQosParams(on), callback);
     }
 
     /**
-     * Get a {@link JSONArray} of current DHCP reserved address entries
+     * Put device in given QOS policy mode if flag enabled is true.
      *
-     * @return The DHCP address entries as a {@link JSONArray}
-     * @throws IOException
+     * @param policy  The policy to use.
+     * @param enabled Whether to enable or disable the mode.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    public JSONArray getAddressReservationList() throws IOException {
-        if (!isLoggedIn())
-            throw new IllegalStateException("Not logged in!");
-        Request request = new Request.Builder()
-                .url(String.format("%s/cgi-bin/cgi?req=frm&frm=dhcps_lease.html&rnd=%d", url, Utils.getRandomInt(8)))
-                .build();
-        Response response = client.newCall(request).execute();
-        Document doc = Jsoup.parse(response.body().string());
-        Element table = doc.getElementsByAttributeValue("class", "AD_LIST").first();
-        JSONArray entries = new JSONArray();
-        for (Element tr : table.getElementsByTag("tr")) {
-            Elements tds = tr.getElementsByTag("td");
-            if (tds.size() == 5) {
-                entries.put(new JSONObject()
-                        .put("IP", tds.get(0).text().replaceAll("\\(\\*\\)", ""))
-                        .put("MAC", tds.get(1).text())
-                        .put("LEASE", tds.get(2).text())
-                        .put("ID", tds.get(4).getElementsByAttributeValue("type", "submit")
-                                .first().attr("name").substring(3)));
+    public JSONObject setQosPolicy(String policy, boolean enabled) throws IOException {
+        return set(adapter.getQosPolicyParams(policy, enabled));
+    }
+
+    /**
+     * Put device in given QOS policy mode if flag enabled is true.
+     * Asynchronous version of {@link #setQosPolicy(String, boolean)} method.
+     *
+     * @param policy   The policy to use.
+     * @param on       Whether to enable or disable the mode.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void setQosPolicy(String policy, boolean on, AsyncCallback<JSONObject> callback) {
+        set(adapter.getQosPolicyParams(policy, on), callback);
+    }
+
+    /**
+     * Setup the parental policy.
+     *
+     * @param policy The parental policy.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject setParentalPolicy(int policy) throws IOException {
+        return set(adapter.getParentalPolicyParams(policy));
+    }
+
+    /**
+     * Setup the parental policy.
+     * Asynchronous version of {@link #setParentalPolicy(int)} method.
+     *
+     * @param policy   The parental policy.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void setParentalPolicy(int policy, AsyncCallback<JSONObject> callback) {
+        set(adapter.getParentalPolicyParams(policy), callback);
+    }
+
+    /**
+     * Enable/Disable guest wifi access mode.
+     *
+     * @param on Whether to enable or disable the guest wifi.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject guest(boolean on) throws IOException {
+        return set(adapter.getGuestEnabledParams(on));
+    }
+
+    /**
+     * Enable/Disable guest wifi access mode.
+     * Asynchronous version of {@link #guest(boolean)} method.
+     *
+     * @param on       Whether to enable or disable the guest wifi.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void guest(boolean on, AsyncCallback<JSONObject> callback) {
+        set(adapter.getGuestEnabledParams(on), callback);
+    }
+
+    /**
+     * Detect attached storage devices.
+     *
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONObject detectNas() throws IOException {
+        return set(adapter.getDetectNasParams());
+    }
+
+    /**
+     * Detect attached storage devices.
+     * Asynchronous version of {@link #detectNas()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void detectNas(AsyncCallback<JSONObject> callback) {
+        set(adapter.getDetectNasParams(), callback);
+    }
+
+
+    /**
+     * Get a {@link JSONArray} of current DHCP reserved address entries.
+     *
+     * @return The DHCP address entries as a {@link JSONArray}.
+     * @throws IOException Whenever something goes wrong communicating with the device.
+     */
+    public JSONArray getDhcpReservation() throws IOException {
+        if (!adapter.isLoggedIn())
+            throw new IllegalStateException("You must be logged in to perform this request.");
+        return adapter.toDhcpEntries(client.newCall(adapter.getFRMRequest("dhcps_lease.html")).execute());
+    }
+
+    /**
+     * Get a {@link JSONArray} of current DHCP reserved address entries.
+     * Asynchronous version of {@link #getDhcpReservation()} method.
+     *
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void getDhcpReservation(final AsyncCallback<JSONArray> callback) {
+        if (!adapter.isLoggedIn())
+            callback.onFailure(new IllegalStateException("You must be logged in to perform this request."));
+        client.newCall(adapter.getFRMRequest("dhcps_lease.html")).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                callback.onFailure(e);
             }
-        }
-        return entries;
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                callback.onSuccess(adapter.toDhcpEntries(response));
+            }
+        });
     }
 
     /**
-     * Edit the DHCP entry. Must contain:
-     * <ul>
-     * <li>ID: unique identified for this entry as released by the AirStation</li>
-     * <li>IP: String</li>
-     * <li>MAC: String</li>
-     * </ul>
+     * Edit the DHCP entry.
      *
-     * @param dhcpEntry The entry to edit
-     * @throws IOException
+     * @param dev The entry to edit.
+     * @return A {@link JSONObject} with the result: {"RESULT": "OK"} if device received the command.
+     * @throws IOException Whenever something goes wrong communicating with the device.
      */
-    public void editAddressReservation(JSONObject dhcpEntry) throws IOException {
-        Map<String, String> params = new HashMap<>();
-        String id = dhcpEntry.getString("ID");
-        params.put("sWebSessionnum", webSessionNum);
-        params.put("sWebSessionid", webSessionId);
-        params.put("manip" + id, dhcpEntry.getString("IP"));
-        params.put("manmac" + id, dhcpEntry.getString("MAC"));
-        params.put("EDITID", id);
-        params.put("DOFIX" + id, "Save");
-        set(params);
+    public JSONObject updateDhcpReservation(NetworkDevice dev) throws IOException {
+        return set(adapter.getDhcpEntryParams(dev));
+    }
+
+    /**
+     * Edit the DHCP entry.
+     * Asynchronous version of {@link #updateDhcpReservation(NetworkDevice)} method.
+     *
+     * @param dev      The entry to edit.
+     * @param callback The {@link AsyncCallback} to use either on success or failure events.
+     */
+    public void updateDhcpReservation(NetworkDevice dev, AsyncCallback<JSONObject> callback) {
+        set(adapter.getDhcpEntryParams(dev), callback);
     }
 }

@@ -4,43 +4,50 @@ import java.math.BigInteger;
 import java.security.SecureRandom;
 
 /**
+ * This is a Java translation of Buffalo AirStation Javascript RSA implementation.
+ * <p>
  * Created by fabio on 24/02/17.
  */
-public class Rsa implements Encryptor{
-    private final static String b64map="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    private final static String b64pad="=";
+public class JSRsa implements Encryptor {
+    private final static String b64map = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    private final static String b64pad = "=";
     private BigInteger exp;
     private BigInteger mod;
     private int len;
 
-    public Rsa(String exp, String mod) {
+    /**
+     * Build an AirStation RSA object. Modulus and Exponent must be read from login page, they could change from device to device.
+     *
+     * @param exp The exponent (Integer string representation).
+     * @param mod The modulus (hex string).
+     */
+    public JSRsa(String exp, String mod) {
         this.exp = new BigInteger(Integer.toHexString(Integer.parseInt(exp)), 16);
         this.mod = new BigInteger(mod, 16);
         this.len = (this.mod.bitLength() + 7) >> 3;
     }
 
 
-    private String hex2b64(String h) {
+    String hex2b64(String h) {
         int i;
         int c;
         String ret = "";
-        for(i = 0; i+3 <= h.length(); i+=3) {
-            c = Integer.parseInt(h.substring(i,i+3),16);
+        for (i = 0; i + 3 <= h.length(); i += 3) {
+            c = Integer.parseInt(h.substring(i, i + 3), 16);
             ret += String.format("%c%c", b64map.charAt(c >> 6), b64map.charAt(c & 63));
         }
-        if(i+1 == h.length()) {
-            c = Integer.parseInt(h.substring(i,i+1),16);
+        if (i + 1 == h.length()) {
+            c = Integer.parseInt(h.substring(i, i + 1), 16);
             ret += String.format("%c", b64map.charAt(c << 2));
-        }
-        else if(i+2 == h.length()) {
-            c = Integer.parseInt(h.substring(i,i+2),16);
+        } else if (i + 2 == h.length()) {
+            c = Integer.parseInt(h.substring(i, i + 2), 16);
             ret += String.format("%c%c", b64map.charAt(c >> 2), b64map.charAt((c & 3) << 4));
         }
-        while((ret.length() & 3) > 0) ret += b64pad;
+        while ((ret.length() & 3) > 0) ret += b64pad;
         return ret;
     }
 
-    public String linebrk(String s, int n) {
+    String linebrk(String s, int n) {
         StringBuilder sb = new StringBuilder();
         int i = 0;
         while ((i + n) < s.length()) {
@@ -51,7 +58,7 @@ public class Rsa implements Encryptor{
     }
 
     // PKCS#1 (type 2, random) pad input string s to n bytes, and return a bigint
-    public BigInteger pkcs1pad2(String s) {
+    BigInteger pkcs1pad2(String s) {
         int n = this.len;
         if (n < s.length() + 11) { // TODO: fix for utf-8
             throw new IllegalArgumentException("Message too long for RSA");
@@ -86,13 +93,19 @@ public class Rsa implements Encryptor{
         return new BigInteger(ba);
     }
 
-    public String hexToBase64(String data) {
+    String hexToBase64(String data) {
         if (data != null && !data.equals("")) {
             return linebrk(hex2b64(data), 64);
         }
         return "";
     }
 
+    /**
+     * Encrypt the given String using AirStation's RSA implementation.
+     *
+     * @param plainText The text to encrypt.
+     * @return The encrypted text.
+     */
     public String encrypt(String plainText) {
         BigInteger m = pkcs1pad2(plainText);
         BigInteger c = m.modPow(exp, mod);
