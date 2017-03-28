@@ -81,10 +81,11 @@ public class RequestAdapter implements Closeable {
      *
      * @param response The {@link Response} to parse.
      * @return A {@link Document} representing the response passed.
-     * @throws IOException Whenever something goes wrong getting or parsing the response.
+     * @throws AirStationException Whenever something goes wrong getting or parsing the response.
      */
     static Document responseToDocument(Response response) throws IOException {
-        Document doc = Jsoup.parse(response.body().string());
+        Document doc = null;
+        doc = Jsoup.parse(response.body().string());
         Element div = doc.getElementsByAttributeValue("class", "errortxt").first();
         if (div != null)
             throw new AirStationException(div.text());
@@ -128,10 +129,12 @@ public class RequestAdapter implements Closeable {
      * @param password     The password to use while forging the request.
      * @param homeResponse The response got for a previous call to the home page.
      * @return The login {@link Request}.
-     * @throws IOException Whenever and error occurs while parsing or encoding data.
+     * @throws IOException          Whenever and error occurs while parsing the response.
+     * @throws UnsupportedEncodingException If an unsupported encoding is specified to encode FORM parameters.
      */
     public Request doLoginFromHomeResponse(String username, String password, Response homeResponse) throws IOException {
-        Document doc = responseToDocument(homeResponse);
+        Document doc = null;
+        doc = responseToDocument(homeResponse);
         if (doc.getElementsByTag("title").first().text().equalsIgnoreCase("login")) {
             Map<String, String> params = new HashMap<>();
             params.put("lang", "auto");
@@ -395,10 +398,10 @@ public class RequestAdapter implements Closeable {
      *
      * @param response The {@link Response} containing the DHCP reservation table.
      * @return A {@link JSONArray} with the DHCP reservation table.
-     * @throws IOException Whenever something goes wrong getting or parsing the response.
+     * @throws AirStationException Whenever something goes wrong getting or parsing the response.
      */
     public JSONArray toDhcpEntries(Response response) throws IOException {
-        Document doc = Jsoup.parse(response.body().string());
+        Document doc = responseToDocument(response);
         Element table = doc.getElementsByAttributeValue("class", "AD_LIST").first();
         JSONArray entries = new JSONArray();
         for (Element tr : table.getElementsByTag("tr")) {
@@ -434,39 +437,16 @@ public class RequestAdapter implements Closeable {
     }
 
     /**
-     * Given a {@link Response} object return a {@link JSONObject} with {"RESULT": "OK"} or {"RESULT": "FAIL", "REASON": "..."}.
-     * In case of failure, the "REASON" field is populated with a String message from "errortxt" field of original HTML response.
-     *
-     * @param response    The {@link Response} to parse for success or failure response.
-     * @param closeOnFail Whether to close the session in case of failure.
-     * @return A {@link JSONObject} with {"RESULT": "OK"} or {"RESULT": "FAIL", "REASON": "..."}.
-     * @throws IOException Whenever something goes wrong getting or parsing the response.
-     */
-    JSONObject toJSONResponse(Response response, boolean closeOnFail) throws IOException {
-        JSONObject jsonObject = new JSONObject();
-        try {
-            RequestAdapter.responseToDocument(response);
-            jsonObject.put("RESULT", "OK");
-        } catch (AirStationException e) {
-            jsonObject.put("RESULT", "FAIL");
-            jsonObject.put("REASON", e.getMessage());
-            if (closeOnFail) {
-                close();
-            }
-        }
-        return jsonObject;
-    }
-
-    /**
-     * Given a {@link Response} object return a {@link JSONObject} with {"RESULT": "OK"} or {"RESULT": "FAIL", "REASON": "..."}.
-     * In case of failure, the "REASON" field is populated with a String message from "errortxt" field of original HTML response.
+     * Given a {@link Response} object return a {@link JSONObject} with {"RESULT": "OK"} an {@link AirStationException} if something wrong occurs.
+     * In case of failure, the exception message is taken from "errortxt" field of original HTML response.
      *
      * @param response The {@link Response} to parse for success or failure response.
-     * @return A {@link JSONObject} with {"RESULT": "OK"} or {"RESULT": "FAIL", "REASON": "..."}.
+     * @return A {@link JSONObject} with {"RESULT": "OK"}
      * @throws IOException Whenever something goes wrong getting or parsing the response.
      */
     JSONObject toJSONResponse(Response response) throws IOException {
-        return toJSONResponse(response, false);
+        RequestAdapter.responseToDocument(response);
+        return new JSONObject().put("RESULT", "OK");
     }
 
     /**

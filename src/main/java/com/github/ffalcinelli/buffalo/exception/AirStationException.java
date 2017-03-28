@@ -13,4 +13,7 @@ public class AirStationException extends IOException {
         super(message);
     }
 
+    public AirStationException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -1,5 +1,6 @@
 package com.github.ffalcinelli.buffalo.airstation;
 
+import com.github.ffalcinelli.buffalo.exception.AuthenticationException;
 import com.github.ffalcinelli.buffalo.models.NasSettings;
 import com.github.ffalcinelli.buffalo.models.NetworkDevice;
 import com.github.ffalcinelli.buffalo.models.WifiSettings;
@@ -20,7 +21,7 @@ import static com.github.ffalcinelli.buffalo.utils.Utils.getStringOrDefault;
 /**
  * AirStation handles the connection to an AirStation device.
  * <p>
- * Provides a Java API for the functions exposed by the devices.
+ * Provides a Java API for the functions exposed by the device.
  * <p>
  * Created by fabio on 24/02/17.
  */
@@ -158,17 +159,19 @@ public class AirStation implements Closeable {
      *
      * @param username The username (usually "admin").
      * @param password The password (if it's not been changed set it to "password").
-     * @return a {@link JSONObject} {"RESULT": "OK"} if all went fine, {"RESULT": "FAIL", "REASON": "..."} otherwise.
-     * @throws IOException Whenever something goes wrong communicating with the device.
+     * @return a {@link JSONObject} {"RESULT": "OK"} if all went fine.
+     * @throws IOException Whenever something goes wrong communicating with the device or login fails.
      */
     public JSONObject login(final String username, final String password) throws IOException {
         if (!adapter.isLoggedIn()) {
-            Response response = client.newCall(
-                    adapter.doLoginFromHomeResponse(username, password, client.newCall(
-                            adapter.getHomeRequest()
-                    ).execute())
-            ).execute();
-            return adapter.toJSONResponse(response, true);
+            try {
+                Response getHomeResponse = client.newCall(adapter.getHomeRequest()).execute();
+                Request doLoginRequest = adapter.doLoginFromHomeResponse(username, password, getHomeResponse);
+                Response response = client.newCall(doLoginRequest).execute();
+                return adapter.toJSONResponse(response);
+            } catch (Exception e) {
+                throw new AuthenticationException("Unable to authenticate user " + username, e);
+            }
         }
         //TODO: check this up if it's really logged in
         return new JSONObject().put("RESULT", "OK");
@@ -202,8 +205,11 @@ public class AirStation implements Closeable {
 
                         @Override
                         public void onResponse(Call call, Response response) throws IOException {
-                            //TODO: handle invalid username and password. This method should return a JSONObject
-                            callback.onSuccess(adapter.toJSONResponse(response, true));
+                            try {
+                                callback.onSuccess(adapter.toJSONResponse(response));
+                            } catch (Exception e) {
+                                callback.onFailure(new AuthenticationException("Unable to authenticate user " + username, e));
+                            }
                         }
                     });
                 } else {
@@ -234,14 +240,14 @@ public class AirStation implements Closeable {
         client.newCall(adapter.getLogoutRequest()).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
-                callback.onFailure(e);
                 closeIgnoreException(adapter);
+                callback.onFailure(e);
             }
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
+                adapter.close();
                 callback.onSuccess(adapter.toJSONResponse(response));
-                closeIgnoreException(adapter);
             }
         });
     }

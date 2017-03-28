@@ -1,6 +1,7 @@
 package com.github.ffalcinelli.buffalo.airstation;
 
 import com.github.ffalcinelli.buffalo.exception.AirStationException;
+import com.github.ffalcinelli.buffalo.exception.AuthenticationException;
 import junit.framework.TestCase;
 import okhttp3.*;
 import org.json.JSONArray;
@@ -31,7 +32,7 @@ public class AirStationTestCase extends AbstractAirStationTestCase {
         assertTrue(airStation.getAdapter().isLoggedIn());
     }
 
-    @Test
+    @Test(expected = AuthenticationException.class)
     public void loginFailed() throws IOException {
         denyLogin();
         assertResultNotOk(airStation.login("admin", "wrong_password"));

@@ -4,7 +4,7 @@ import com.github.ffalcinelli.buffalo.AbstractTestCase;
 import com.github.ffalcinelli.buffalo.models.NasSettings;
 import com.github.ffalcinelli.buffalo.models.NetworkDevice;
 import com.github.ffalcinelli.buffalo.models.WifiSettings;
-import okhttp3.HttpUrl;
+import okhttp3.*;
 import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -206,6 +206,6 @@ public abstract class AbstractAirStationTestCase extends AbstractTestCase {
         baseUrl = server.url("/");
         airStation = new AirStation(baseUrl.toString());
         prepareFixtures();
-        setupConnection();
+//        setupConnection();
     }
 }
